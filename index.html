@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Separation Lab</title>
+    <style>
+        /* This is the CSS (the visual styling) */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: grid;
+            /* New Landscape Grid Layout */
+            grid-template-areas:
+                "header header"
+                "lab    tools"
+                "lab    feedback"
+                "lab    new-mixture";
+            grid-template-columns: 2fr 1.2fr; /* Left col, Right col */
+            grid-template-rows: auto auto 1fr auto; /* Header | Tools | Feedback (stretchy) | New Mixture */
+            gap: 20px;
+            padding: 20px;
+            max-width: 1100px; /* Wider for landscape */
+            height: 95vh; /* Tries to fill the screen height */
+            margin: auto;
+            background-color: #f4f7f6;
+        }
+        h1 { 
+            grid-area: header; 
+            text-align: center; 
+            color: #333; 
+            margin-top: 0;
+        }
+        
+        /* --- Left Column --- */
+        #lab-area { 
+            grid-area: lab; 
+            background: #fff; 
+            border: 1px solid #ccc; 
+            border-radius: 8px; 
+            padding: 20px;
+            /* This makes the beaker area grow */
+            display: flex;
+            flex-direction: column;
+        }
+        #mixture-container { 
+            border: 2px dashed #007bff; 
+            padding: 15px; 
+            min-height: 200px; /* Taller min-height */
+            border-radius: 5px; 
+            background-color: #f0f8ff;
+            /* This is the magic: it grows to fill space */
+            flex-grow: 1; 
+        }
+        #mixture-contents { display: flex; flex-wrap: wrap; gap: 10px; }
+        .item {
+            background-color: #e9ecef; border: 1px solid #adb5bd;
+            padding: 8px 12px; border-radius: 20px; font-weight: 500;
+        }
+        .item.solution { background-color: #cce5ff; border-color: #b8daff; }
+        #collected-container { margin-top: 20px; }
+        #collected-items { display: flex; flex-wrap: wrap; gap: 10px; min-height: 40px; }
+        #collected-items .item { background-color: #d4edda; border-color: #c3e6cb; }
+
+        /* --- Right Column --- */
+        #tools-area { 
+            grid-area: tools; 
+            background: #fff; 
+            border: 1px solid #ccc; 
+            border-radius: 8px; 
+            padding: 20px; 
+        }
+        #tools-area h3 { margin-top: 0; text-align: center; }
+        #tools-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr; /* 3-column layout */
+            gap: 15px;
+        }
+        /* Smaller tool buttons */
+        .tool-button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 8px;
+            border: 2px solid #dee2e6;
+            background-color: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            min-height: 80px; /* Consistent height */
+        }
+        .tool-button:hover { border-color: #007bff; background-color: #e7f3ff; color: #0056b3; }
+        .tool-button:active { transform: scale(0.97); }
+        .tool-emoji {
+            font-size: 2rem; /* Smaller emoji */
+            margin-bottom: 8px;
+        }
+        
+        /* Feedback Area */
+        #feedback-area { 
+            grid-area: feedback; 
+            padding: 20px; 
+            border-radius: 8px; 
+            font-size: 1.1rem; 
+            font-weight: 500; 
+            text-align: center;
+            background: #fff;
+            border: 1px solid #ccc;
+            /* Allows scrolling if many messages */
+            overflow-y: auto;
+        }
+        .feedback-success { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
+        .feedback-error { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+        .feedback-win { background-color: #fff3cd; color: #856404; border-color: #ffeeba; font-size: 1.3rem; padding: 25px;}
+
+        /* New Mixture Button */
+        #new-mixture-btn {
+            grid-area: new-mixture;
+            padding: 18px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            border: 2px solid #dc3545;
+            background-color: #fdfdfd;
+            color: #dc3545;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        #new-mixture-btn:hover {
+            background-color: #fff5f5;
+            border-color: #b02a37;
+        }
+        #new-mixture-btn .tool-emoji {
+             font-size: 1.5rem;
+             margin-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Virtual Separation Lab 🧪</h1>
+
+    <div id="lab-area">
+        <h3 id="scenario-title">Current Scenario:</h3>
+        <div id="mixture-container">
+            <h3>Main Mixture Beaker:</h3>
+            <div id="mixture-contents"></div>
+        </div>
+        <div id="collected-container">
+            <h3>Separated Components:</h3>
+            <div id="collected-items"></div>
+        </div>
+    </div>
+
+    <aside id="tools-area">
+        <h3>Workbench</h3>
+        <div id="tools-container">
+            <button class="tool-button" onclick="useTool('magnet')"><span class="tool-emoji">🧲</span> Magnet</button>
+            <button class="tool-button" onclick="useTool('sieve')"><span class="tool-emoji">🥅</span> Sieve</button>
+            <button class="tool-button" onclick="useTool('water')"><span class="tool-emoji">💧</span> Add Water</button>
+            <button class="tool-button" onclick="useTool('filter')"><span class="tool-emoji">☕</span> Filter</button>
+            <button class="tool-button" onclick="useTool('heat')"><span class="tool-emoji">🔥</span> Heat Source</button>
+            <button class="tool-button" onclick="emptyBeaker()"><span class="tool-emoji">📥</span> Empty Beaker</button>
+        </div>
+    </aside>
+
+    <div id="feedback-area">
+        <p id="feedback-text">Welcome! Click 'New Mixture' to start a challenge.</p>
+    </div>
+
+    <button id="new-mixture-btn" onclick="resetLab()">
+        <span class="tool-emoji">🔄</span> New Mixture
+    </button>
+    
+
+    <script>
+        // --- ITEM & SCENARIO DATABASE ---
+
+        const itemDatabase = {
+            iron: { name: 'Iron Filings', isMagnetic: true, size: 'small', isSoluble: false },
+            sand: { name: 'Sand', isMagnetic: false, size: 'small', isSoluble: false },
+            salt: { name: 'Salt', isMagnetic: false, size: 'small', isSoluble: true },
+            pebbles: { name: 'Pebbles', isMagnetic: false, size: 'large', isSoluble: false },
+            bolts: { name: 'Steel Bolts', isMagnetic: true, size: 'large', isSoluble: false },
+            coins: { name: 'Copper Coins', isMagnetic: false, size: 'large', isSoluble: false },
+            sugar: { name: 'Sugar', isMagnetic: false, size: 'small', isSoluble: true },
+            woodChips: { name: 'Wood Chips', isMagnetic: false, size: 'large', isSoluble: false }
+        };
+
+        const scenarios = [
+            // 4-Item Scenarios
+            { name: "The Classic", items: ['iron', 'pebbles', 'salt', 'sand'] },
+            { name: "Workshop Floor", items: ['bolts', 'sugar', 'sand'] }, // 'bolts' counts as M and L
+            { name: "Sweet Beach", items: ['iron', 'coins', 'sugar', 'sand'] },
+            { name: "Trail Mix Mess", items: ['iron', 'woodChips', 'salt', 'sand'] },
+            { name: "Lost Pocket", items: ['coins', 'iron', 'salt', 'sand'] },
+            { name: "Carpenter's Coffee", items: ['woodChips', 'iron', 'sugar', 'sand'] },
+            
+            // 3-Item Scenarios (M + L + S)
+            { name: "Weirdest Drink", items: ['iron', 'pebbles', 'salt'] },
+            { name: "Workshop Sweet Tea", items: ['bolts', 'sugar'] }, // 'bolts' is M+L
+            { name: "Picnic Spill", items: ['coins', 'iron', 'sugar'] },
+            { name: "Garden Path", items: ['woodChips', 'iron', 'salt'] },
+
+            // 3-Item Scenarios (M + L + I)
+            { name: "Dry Construction", items: ['iron', 'pebbles', 'sand'] },
+            { name: "Found in the Dirt", items: ['bolts', 'sand'] }, // 'bolts' is M+L
+            { name: "Park Find", items: ['coins', 'iron', 'sand'] },
+            { name: "Mulch Pile", items: ['woodChips', 'iron', 'sand'] },
+
+            // 3-Item Scenarios (M + S + I)
+            { name: "Salty Iron Sand", items: ['iron', 'salt', 'sand'] },
+            { name: "Sweet Iron Sand", items: ['iron', 'sugar', 'sand'] },
+
+            // 3-Item Scenarios (L + S + I)
+            { name: "The Beach", items: ['pebbles', 'salt', 'sand'] },
+            { name: "Sweet Riverbed", items: ['coins', 'sugar', 'sand'] },
+            { name: "Wet Campsite", items: ['woodChips', 'salt', 'sand'] },
+
+            // 2-Item Scenarios (for variety)
+            { name: "Sandy Bolts", items: ['bolts', 'sand'] },
+            { name: "Salty Pebbles", items: ['pebbles', 'salt'] },
+        ];
+
+        // --- STATE MANAGEMENT ---
+        let state = {
+            mixture: [],
+            collected: [],
+            isWet: false,
+            originalItemCount: 0,
+            currentScenarioName: "None"
+        };
+
+        // --- DOM ELEMENTS ---
+        const mixtureDiv = document.getElementById('mixture-contents');
+        const collectedDiv = document.getElementById('collected-items');
+        const feedbackText = document.getElementById('feedback-text');
+        const feedbackArea = document.getElementById('feedback-area');
+        const scenarioTitle = document.getElementById('scenario-title');
+
+        // --- HELPER FUNCTIONS ---
+        const findInMixture = (prop, value) => state.mixture.filter(item => item[prop] === value);
+        const hasInMixture = (prop, value) => state.mixture.some(item => item[prop] === value);
+        
+        // --- CORE LOGIC ---
+        
+        function resetLab() {
+            const randomScenario = scenarios[Math.floor(Math.random() * scenarios.length)];
+            
+            state.mixture = randomScenario.items.map(key => {
+                // Clone item from database
+                return { ...itemDatabase[key], isDissolved: false }; 
+            });
+            state.collected = [];
+            state.isWet = false;
+            state.originalItemCount = randomScenario.items.length;
+            state.currentScenarioName = randomScenario.name;
+
+            updateUI();
+            setFeedback(`New Scenario: "${randomScenario.name}". Analyze the mixture and begin!`, "success");
+        }
+
+        function useTool(tool) {
+            if (state.mixture.length === 0 && state.collected.length === state.originalItemCount && state.originalItemCount > 0) {
+                setFeedback("This lab is complete. Click 'New Mixture' to start another.", "error");
+                return;
+            }
+
+            switch (tool) {
+                case 'magnet': useMagnet(); break;
+                case 'sieve': useSieve(); break;
+                case 'water': useWater(); break;
+                case 'filter': useFilter(); break;
+                case 'heat': useHeat(); break;
+            }
+            
+            updateUI();
+            checkWinCondition();
+        }
+
+        function useMagnet() {
+            // Note: Scenarios are designed so only one item is magnetic
+            const magneticItems = findInMixture('isMagnetic', true);
+            if (magneticItems.length > 0) {
+                state.mixture = state.mixture.filter(item => !item.isMagnetic);
+                state.collected.push(...magneticItems);
+                setFeedback(`Success! The magnet pulled out the ${magneticItems[0].name}.`, "success");
+            } else {
+                setFeedback("Nothing happened. There are no magnetic items left.", "error");
+            }
+        }
+
+        function useSieve() {
+            if (hasInMixture('isMagnetic', true) && !hasInMixture('size', 'large')) {
+                // This check prevents sifting small magnetic items (iron)
+                setFeedback("That won't work. The magnetic items are sticking to the sieve! Get them out first.", "error");
+                return;
+            }
+            
+            // Note: Scenarios are designed so only one item is large
+            const largeItems = findInMixture('size', 'large');
+            if (largeItems.length > 0) {
+                state.mixture = state.mixture.filter(item => item.size !== 'large');
+                state.collected.push(...largeItems);
+                setFeedback(`Success! The sieve caught the ${largeItems[0].name}.`, "success");
+            } else {
+                setFeedback("Nothing happened. Everything left is too small to be sifted.", "error");
+            }
+        }
+
+        function useWater() {
+            if (hasInMixture('size', 'large')) {
+                setFeedback("Don't add water yet! You'll make a mucky mess. Sift out the large items first.", "error");
+                return;
+            }
+            if (state.isWet) {
+                setFeedback("You've already added water.", "error");
+                return;
+            }
+
+            // Note: Scenarios are designed so only one item is soluble
+            const solubleItems = findInMixture('isSoluble', true);
+            if (solubleItems.length > 0) {
+                state.isWet = true;
+                state.mixture.forEach(item => {
+                    if (item.isSoluble) item.isDissolved = true;
+                });
+                setFeedback(`Good idea! The ${solubleItems[0].name} dissolved in the water.`, "success");
+            } else {
+                setFeedback("You added water, but nothing dissolved. You just have wet solids.", "error");
+                state.isWet = true; // Mark it as wet even if nothing dissolved
+            }
+        }
+
+        function useFilter() {
+            if (!state.isWet) {
+                setFeedback("That won't work. You can't filter dry solids from each other.", "error");
+                return;
+            }
+
+            // Note: Scenarios are designed so only one item is small and insoluble
+            const solidItems = state.mixture.filter(item => !item.isDissolved);
+            if (solidItems.length > 0) {
+                state.mixture = state.mixture.filter(item => item.isDissolved);
+                state.collected.push(...solidItems);
+                setFeedback(`Great! The filter paper caught the ${solidItems[0].name}.`, "success");
+            } else if (hasInMixture('isDissolved', true)) {
+                setFeedback("You're just filtering saltwater through... saltwater. The dissolved items pass right through.", "error");
+            } else {
+                setFeedback("There's nothing to filter.", "error");
+            }
+        }
+        
+        function useHeat() {
+            if (!state.isWet) {
+                setFeedback("You're just making hot, dry solids. That didn't separate them.", "error");
+                return;
+            }
+
+            const solidItems = state.mixture.filter(item => !item.isDissolved);
+            if (solidItems.length > 0) {
+                setFeedback("You're just making hot, wet solids. Filter out the solids first!", "error");
+                return;
+            }
+
+            // Note: Scenarios are designed so only one item is soluble
+            const dissolvedItems = findInMixture('isDissolved', true);
+            if (dissolvedItems.length > 0) {
+                state.isWet = false;
+                state.mixture = state.mixture.filter(item => !item.isDissolved);
+                state.collected.push(...dissolvedItems);
+                setFeedback(`Perfect! The water evaporated, leaving the ${dissolvedItems[0].name} behind.`, "success");
+            } else {
+                setFeedback("You boiled off the plain water. There was nothing dissolved in it.", "error");
+                state.isWet = false;
+            }
+        }
+
+        function emptyBeaker() {
+            if (state.isWet) {
+                setFeedback("You can't empty it! It's full of liquid. Filter it or heat it first.", "error");
+                return;
+            }
+            if (state.mixture.length > 1) {
+                setFeedback("You can't empty the beaker, there are still multiple items mixed together!", "error");
+                return;
+            }
+            if (state.mixture.length === 0) {
+                setFeedback("The beaker is already empty.", "error");
+                return;
+            }
+            
+            // Success: only one dry item is left
+            const lastItem = state.mixture[0];
+            state.collected.push(lastItem);
+            state.mixture = [];
+            setFeedback(`You've collected the last item: ${lastItem.name}.`, "success");
+            updateUI();
+            checkWinCondition();
+        }
+
+
+        // --- UI & WIN/LOSS ---
+
+        function updateUI() {
+            mixtureDiv.innerHTML = '';
+            collectedDiv.innerHTML = '';
+            scenarioTitle.textContent = `Current Scenario: ${state.currentScenarioName}`;
+
+            // Render mixture
+            let hasDissolvedItems = false;
+            state.mixture.forEach(item => {
+                if (!item.isDissolved) {
+                    mixtureDiv.innerHTML += `<div class="item">${item.name}</div>`;
+                } else {
+                    hasDissolvedItems = true;
+                }
+            });
+
+            if (hasDissolvedItems) {
+                // We have a solution (and maybe solids)
+                const solids = state.mixture.filter(item => !item.isDissolved);
+                if (solids.length > 0) {
+                    mixtureDiv.innerHTML += `<div class="item solution">Solution (with solids)</div>`;
+                } else {
+                    mixtureDiv.innerHTML += `<div class="item solution">Solution (Dissolved)</div>`;
+                }
+            } else if (state.isWet && state.mixture.length > 0) {
+                // We just have wet, non-dissolved solids
+                 mixtureDiv.innerHTML += `<div class="item solution">Wet Solids</div>`;
+            }
+
+            if (mixtureDiv.innerHTML === '') {
+                mixtureDiv.innerHTML = '<div class="item" style="background: #eee; border-color: #ddd; color: #777;">Beaker is Empty</div>';
+            }
+            
+            // Render collected items
+            state.collected.forEach(item => {
+                collectedDiv.innerHTML += `<div class="item">${item.name}</div>`;
+            });
+        }
+        
+        function setFeedback(message, type) {
+            feedbackText.textContent = message;
+            feedbackArea.className = ``; // Clear classes
+            feedbackArea.classList.add(`feedback-${type}`); // Add new one
+        }
+        
+        function checkWinCondition() {
+            if (state.mixture.length === 0 && state.collected.length === state.originalItemCount && state.originalItemCount > 0) {
+                setFeedback(`Congratulations! You successfully separated all ${state.originalItemCount} components from "${state.currentScenarioName}"!`, "win");
+            }
+        }
+
+        // --- INITIALIZE ---
+        resetLab();
+
+    </script>
+</body>
+</html>
